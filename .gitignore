@@ -1,0 +1,7 @@
+# compiled
+*.out
+*.exe
+*.o
+
+# binaries
+*.dll
