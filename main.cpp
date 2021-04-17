@@ -1,15 +1,11 @@
 #include <SFML/Graphics.hpp>
-#include <SFML/Graphics/Color.hpp>
-#include <SFML/Graphics/PrimitiveType.hpp>
-#include <SFML/Graphics/VertexArray.hpp>
-#include <SFML/System/Err.hpp>
-#include <SFML/System/Vector2.hpp>
-#include <SFML/Window/Event.hpp>
-#include <SFML/Window/Keyboard.hpp>
+#include <cstddef>
 #include <iostream>
+#include <memory>
 #include <string>
 #include <vector>
 #include <cmath>
+#include <fstream>
 
 #define PI 3.14159265359
 
@@ -35,6 +31,7 @@ class Bullet : public sf::RectangleShape
         setRotation(radToDeg(rotation));
         setFillColor(sf::Color::Yellow);
         short mod = 1;
+        // change direction based on direction
         if (reverse) mod = -1;
         dx = mod*speed * std::cos(rotation);
         dy = mod*speed * std::sin(rotation);
@@ -54,11 +51,12 @@ const int PLAYER_SIZE = 50;
 class CubeEntity : public sf::RectangleShape
 {
     public:
-        CubeEntity(sf::Vector2f size, Weapon& weapon, char direction, float speed, sf::Color colour)
+        CubeEntity(sf::Vector2f size, Weapon& weapon, char direction, float speed, sf::Color colour, sf::Vector2f pos=sf::Vector2f())
         {
             rect.setSize(size);
             rect.setFillColor(colour);
             rect.setOrigin(PLAYER_SIZE/2.f, PLAYER_SIZE/2.f);
+            rect.setPosition(pos);
             entWeapon = weapon;
             facing = direction;
             container.setSize(sf::Vector2f(PLAYER_SIZE, PLAYER_SIZE));
@@ -141,6 +139,64 @@ class CubeEntity : public sf::RectangleShape
 };
 
 
+void createMap(std::ifstream& file, std::vector<std::unique_ptr<sf::Drawable>>& vect, Weapon enemyWeapon)
+{
+    if (file.is_open()) {
+
+    float gridSize = 10;
+    std::string line;
+    while (getline(file, line))
+    {
+    char action = line[0];
+    std::vector<int> args;
+    if (action != '#') // else it's a comment
+    {
+        std::cout << line << std::endl;
+        // get arguments
+        size_t currentPos = 2; // miss first char
+        size_t seekPos;
+        for (seekPos = currentPos; seekPos < line.length(); seekPos++)
+        {
+            if (line[seekPos] == ' ')
+            {
+                args.push_back(
+                    std::stoi(line.substr(currentPos, seekPos))
+                );
+                currentPos = seekPos;
+                continue;
+            }
+        }
+        args.push_back(std::stoi(line.substr(currentPos, line.length())));
+        for(int a: args) std::cout << a << " ";
+        std::cout << std::endl;
+
+        // add elements
+        switch (action)
+        {
+        // case 'P':
+        //     break;
+        case 'E': // enemy
+            {
+            sf::Vector2f position(args.at(0), args.at(1));
+            vect.push_back(std::make_unique<CubeEntity>(
+                sf::Vector2f(PLAYER_SIZE, PLAYER_SIZE), enemyWeapon, 'l', 0,
+                sf::Color::Red, position * gridSize
+            ));
+            std::cout << "created enemy at X:" << position.x << " Y:" << position.y << std::endl;
+            }
+            break;
+        default:
+            std::cout << "Unrecognised entity in map." << std::endl;
+            break;
+        }
+    }
+    }
+
+    }
+    file.close();
+}
+
+
 int main()
 {
     const int WIDTH = 1280,
@@ -160,20 +216,26 @@ int main()
     sf::Texture gun;
     if (!gun.loadFromFile("./assets/imgs/gun.png"))
         std::cout << "Failed to load gun texture" << std::endl;
-    Weapon playerWep = {gun, 1500, 5};
-    Weapon enemyWep = {gun, 200, 0.5};
+
+    std::ifstream mapFile;
+    mapFile.open("inside.map");
+
 
 
     //// game vars
-    int floorY = HEIGHT - 20;
+    int floorY = HEIGHT - 20; // unused?
+    Weapon playerWep = {gun, 1500, 5};
+    Weapon enemyWep = {gun, 200, 0.5};
     CubeEntity player(sf::Vector2f(PLAYER_SIZE, PLAYER_SIZE), playerWep, 'r',
-        100, sf::Color::Red);
+        100, sf::Color::Black);
     player.rect.setPosition(sf::Vector2f(600, 500));
 
     int gravity = 50;
     sf::VertexArray debugLines(sf::LineStrip, 4);
     sf::Vector2i mousePos;
 
+    std::vector<std::unique_ptr<sf::Drawable>> mapElements;
+    createMap(mapFile, mapElements, enemyWep);
 
     //// debug info
     bool showFps = true;
@@ -253,15 +315,19 @@ int main()
         player.updateElements();
 
 
-        window.clear(sf::Color::Black);
+        window.clear(sf::Color(200, 200, 200));
         ///// start drawing
 
+        for (auto& obj : mapElements)
+        {
+            window.draw(*obj);
+        }
         window.draw(player);
 
         if (showFps)
         {
             fpsAmt = "FPS: " + std::to_string(fps) +
-            "\nR: " + std::to_string(player.container.getRotation());
+            "\nR: " + std::to_string(player.wepRotation);
             fpsText.setString(fpsAmt);
             debugLines[0].position = player.container.getPosition();
             debugLines[1].position = (sf::Vector2f)mousePos;
