@@ -1,4 +1,8 @@
 #include <SFML/Graphics.hpp>
+#include <SFML/Graphics/Color.hpp>
+#include <SFML/Graphics/RectangleShape.hpp>
+#include <SFML/System/Vector2.hpp>
+#include <SFML/Window/Keyboard.hpp>
 #include <cstddef>
 #include <iostream>
 #include <memory>
@@ -21,8 +25,21 @@ float radToDeg(float rads)
     return rads * 360.f / (2*PI);
 }
 
-bool boxCollide(sf::Vector2f point1, sf::Vector2f size1, sf::Vector2f point2, sf::Vector2f size2)
+bool boxCollide(sf::Vector2f point1, sf::Vector2f size1,
+    sf::Vector2f point2, sf::Vector2f size2,
+    sf::Vector2f offset1=sf::Vector2f(), sf::Vector2f offset2=sf::Vector2f())
 {
+    bool xCol = (point2.x <= point1.x + size1.x && point1.x + size1.x <= point2.x + size2.x);
+    bool yCol = (point2.y <= point1.y + size1.y && point1.y + size1.y <= point2.y + size2.y);
+    return (xCol && yCol);
+}
+
+bool boxCollide(sf::RectangleShape first, sf::RectangleShape second)
+{
+    sf::Vector2f point1 = first.getPosition() - first.getOrigin();
+    sf::Vector2f point2 = second.getPosition() - second.getOrigin();
+    sf::Vector2f size1 = first.getSize();
+    sf::Vector2f size2 = second.getSize();
     bool xCol = (point2.x <= point1.x + size1.x && point1.x + size1.x <= point2.x + size2.x);
     bool yCol = (point2.y <= point1.y + size1.y && point1.y + size1.y <= point2.y + size2.y);
     return (xCol && yCol);
@@ -38,7 +55,7 @@ class Bullet : public sf::RectangleShape
         setRotation(radToDeg(rotation));
         setFillColor(sf::Color::Yellow);
         short mod = 1;
-        // change direction based on direction
+        // change bullet direction based on player direction
         if (reverse) mod = -1;
         dx = mod*speed * std::cos(rotation);
         dy = mod*speed * std::sin(rotation);
@@ -58,7 +75,9 @@ const int PLAYER_SIZE = 50;
 class CubeEntity : public sf::RectangleShape
 {
     public:
-        CubeEntity(sf::Vector2f size, Weapon& weapon, char direction, float speed, sf::Color colour, sf::Vector2f pos=sf::Vector2f())
+        CubeEntity(sf::Vector2f size, Weapon& weapon, char direction,
+            float speed=100, sf::Color colour=sf::Color::Green,
+            sf::Vector2f pos=sf::Vector2f())
         {
             rect.setSize(size);
             rect.setFillColor(colour);
@@ -71,7 +90,6 @@ class CubeEntity : public sf::RectangleShape
             container.setOrigin(container.getSize()/2.f);
             // container.setOutlineThickness(2);
             // container.setOutlineColor(sf::Color::Blue);
-            moveSpeed = speed;
         }
 
         void dialogue(std::string text)
@@ -82,6 +100,7 @@ class CubeEntity : public sf::RectangleShape
         void updateElements()
         {
             sf::Vector2f pos = rect.getPosition();
+            // flip gun texture depending on direction
             if (facing == 'l')
             {
                 container.setPosition(sf::Vector2f(pos.x-PLAYER_SIZE, pos.y));
@@ -100,27 +119,74 @@ class CubeEntity : public sf::RectangleShape
             wepRotation = std::atan(
                 (float)(containerPos.y - mousePos.y) / (float)(containerPos.x - mousePos.x)
             );
-            // std::cout << "new rotation: " << rotation << std::endl;
             container.setRotation(radToDeg(wepRotation));
+        }
+        
+        void jump()
+        {
+            std::cout << "attempted to jump: ";
+            if (canJump)
+            {
+                dy = -jumpAmt;
+                rect.move(0, -5);
+                std::cout << "jumped" << std::endl;
+                canJump = false;
+            } else std::cout << "failed" << std::endl;
+        }
+
+        // update dx in a way that makes movement smoother
+        void xVel(char option, float delta)
+        {
+            int mod;
+            switch (option) {
+            case 'l': // left
+                mod = -1;
+                break;
+            case 'r': // right
+                mod = 1;
+                break;
+            case 's': // slow down
+                if (dx < 0)
+                    mod = 1;
+                else if (dx > 0)
+                    mod = -1;
+                break;
+            }
+            dx += mod * speed * delta;
+
+            if (dx > maxVelocity)
+                dx = maxVelocity;
+            else if (dx < -maxVelocity)
+                dx = -maxVelocity;
         }
 
         float dx = 0;
         float dy = 0;
-        float speed = 500;
-        float maxFall = 200;
+        float maxFall = 1000;
+        float jumpAmt = 600;
         char facing;
         float wepRotation;
+
         void updatePos(float delta,
             std::vector<sf::RectangleShape>& objects,
             float gravity)
         {
             if (dy < maxFall)
                 dy += gravity * delta;
-            for (auto& obj : objects)
+            if (!canJump)
             {
-                if (boxCollide(rect.getPosition(), rect.getSize(), obj.getPosition(), obj.getSize()))
-                    dy = 0;
-            }
+                for (auto& obj : objects)
+                {
+                    if (boxCollide(rect, obj))
+                    { // player is colliding with something
+                        dy = 0;
+                        // if (rect.getPosition().y+25 > obj.getPosition().y)
+                        //     rect.move(0, -1);
+                        canJump = true;
+                        break;
+                    }
+                }
+            } else dy = 0;
             rect.move(delta * sf::Vector2f(dx, dy));
             for (Bullet& b: bullets)
             {
@@ -142,8 +208,10 @@ class CubeEntity : public sf::RectangleShape
     private:
         std::vector<Bullet> bullets;
         Weapon entWeapon;
-        float moveSpeed;
-        float maxVelocity = 500;
+        // movement
+        float maxVelocity = 600;
+        float speed = maxVelocity * 3;
+        bool canJump;
         sf::Clock shootTimer;
 
         virtual void draw(sf::RenderTarget& target, sf::RenderStates states) const
@@ -226,7 +294,7 @@ void createMap(std::ifstream& file,
 }
 
 
-int main()
+int main(int argc, char* argv[])
 {
     const int WIDTH = 1280,
               HEIGHT = 720;
@@ -252,14 +320,13 @@ int main()
 
 
     //// game vars
-    int floorY = HEIGHT - 20; // unused?
     Weapon playerWep = {gun, 1500, 5};
     Weapon enemyWep = {gun, 200, 0.5};
     CubeEntity player(sf::Vector2f(PLAYER_SIZE, PLAYER_SIZE), playerWep, 'r',
         100, sf::Color::Black);
     player.rect.setPosition(sf::Vector2f(600, 500));
 
-    int gravity = 50;
+    int gravity = 1200;
     sf::VertexArray debugLines(sf::LineStrip, 4);
     sf::Vector2i mousePos;
 
@@ -297,6 +364,26 @@ int main()
         delta = timeElapsed.asSeconds();
         fps = 1000000.f / timeElapsed.asMicroseconds();
 
+        ///// update game
+        mousePos = sf::Mouse::getPosition(window);
+        player.updateWeaponRotation(mousePos);
+
+
+        if (sf::Keyboard::isKeyPressed(sf::Keyboard::A))
+        {
+            player.xVel('l', delta);
+            player.facing = 'l';
+        }
+        else if (sf::Keyboard::isKeyPressed(sf::Keyboard::D))
+        {
+            player.xVel('r', delta);
+            player.facing = 'r';
+        }
+        else player.xVel('s', delta);
+
+        player.updatePos(delta, mapElements, gravity);
+        player.updateElements();
+
         sf::Event event;
         while (window.pollEvent(event))
         {
@@ -309,40 +396,22 @@ int main()
                     player.shoot();
                 }
             }
-            else if (event.type == sf::Event::MouseMoved)
-            {
-                mousePos = sf::Mouse::getPosition(window);
-                player.updateWeaponRotation(mousePos);
-            }
+            // else if (event.type == sf::Event::MouseMoved)
+            // {
+            // }
             else if (event.type == sf::Event::KeyPressed)
             {
                 switch (event.key.code) {
                     case sf::Keyboard::Tab:
                         showFps = !showFps;
                         break;
+                    case sf::Keyboard::W:
+                        player.jump();
                     default:
                         break;
                 }
             }
-            
         }
-
-        ///// update game
-        if (sf::Keyboard::isKeyPressed(sf::Keyboard::A))
-        {
-            player.dx = -player.speed;
-            player.facing = 'l';
-        }
-        else if (sf::Keyboard::isKeyPressed(sf::Keyboard::D))
-        {
-            player.dx = player.speed;
-            player.facing = 'r';
-        }
-        else
-            player.dx = 0;
-
-        player.updatePos(delta, mapElements, gravity);
-        player.updateElements();
 
 
         window.clear(sf::Color(200, 200, 200));
@@ -354,6 +423,7 @@ int main()
         }
         window.draw(player);
 
+        // debug graphics
         if (showFps)
         {
             fpsAmt = "FPS: " + std::to_string(fps) +
@@ -367,7 +437,7 @@ int main()
             window.draw(fpsText);
         }
 
-        // flip canvas
+        ///// flip canvas
         window.display();
     }
 
