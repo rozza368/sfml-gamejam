@@ -110,15 +110,17 @@ class CubeEntity : public sf::RectangleShape
         float maxFall = 200;
         char facing;
         float wepRotation;
-        void updatePos(float delta, std::vector<std::unique_ptr<sf::Drawable>>& objects, float gravity)
+        void updatePos(float delta,
+            std::vector<sf::RectangleShape>& objects,
+            float gravity)
         {
-            // FIX
-            for (auto& obj : objects)
-            {
-                if (boxCollide(rect.getPosition(), rect.getSize(), *obj->getPosition(), sf::Vector2f size2))
-            }
             if (dy < maxFall)
                 dy += gravity * delta;
+            for (auto& obj : objects)
+            {
+                if (boxCollide(rect.getPosition(), rect.getSize(), obj.getPosition(), obj.getSize()))
+                    dy = 0;
+            }
             rect.move(delta * sf::Vector2f(dx, dy));
             for (Bullet& b: bullets)
             {
@@ -154,7 +156,10 @@ class CubeEntity : public sf::RectangleShape
 };
 
 
-void createMap(std::ifstream& file, std::vector<std::unique_ptr<sf::Drawable>>& vect, Weapon enemyWeapon)
+void createMap(std::ifstream& file,
+    // std::vector<std::unique_ptr<sf::Drawable>>& vect,
+    std::vector<sf::RectangleShape>& vect,
+    Weapon enemyWeapon)
 {
     if (file.is_open()) {
 
@@ -189,7 +194,7 @@ void createMap(std::ifstream& file, std::vector<std::unique_ptr<sf::Drawable>>& 
             {
             sf::Vector2f position(args.at(0), args.at(1));
             position *= gridSize;
-            vect.push_back(std::make_unique<CubeEntity>(
+            vect.push_back(CubeEntity(
                 sf::Vector2f(PLAYER_SIZE, PLAYER_SIZE), enemyWeapon, 'l', 0,
                 sf::Color::Red, position
             ));
@@ -203,7 +208,7 @@ void createMap(std::ifstream& file, std::vector<std::unique_ptr<sf::Drawable>>& 
                 position *= gridSize; size *= gridSize;
                 sf::RectangleShape rect(size);
                 rect.setPosition(position);
-                vect.push_back(std::make_unique<sf::RectangleShape>(rect));
+                vect.push_back(rect);
                 std::cout << "created floor at X:" << position.x <<
                     " Y:" << position.y << " with width:" << size.x <<
                     " and height:" << size.y << std::endl;
@@ -258,7 +263,8 @@ int main()
     sf::VertexArray debugLines(sf::LineStrip, 4);
     sf::Vector2i mousePos;
 
-    std::vector<std::unique_ptr<sf::Drawable>> mapElements;
+    // std::vector<std::unique_ptr<sf::Drawable>> mapElements;
+    std::vector<sf::RectangleShape> mapElements;
     createMap(mapFile, mapElements, enemyWep);
 
     //// debug info
@@ -342,9 +348,9 @@ int main()
         window.clear(sf::Color(200, 200, 200));
         ///// start drawing
 
-        for (auto& obj : mapElements)
+        for (sf::RectangleShape& obj : mapElements)
         {
-            window.draw(*obj);
+            window.draw(obj);
         }
         window.draw(player);
 
