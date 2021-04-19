@@ -21,6 +21,13 @@ float radToDeg(float rads)
     return rads * 360.f / (2*PI);
 }
 
+bool boxCollide(sf::Vector2f point1, sf::Vector2f size1, sf::Vector2f point2, sf::Vector2f size2)
+{
+    bool xCol = (point2.x <= point1.x + size1.x && point1.x + size1.x <= point2.x + size2.x);
+    bool yCol = (point2.y <= point1.y + size1.y && point1.y + size1.y <= point2.y + size2.y);
+    return (xCol && yCol);
+}
+
 class Bullet : public sf::RectangleShape
 {
     public:
@@ -100,10 +107,18 @@ class CubeEntity : public sf::RectangleShape
         float dx = 0;
         float dy = 0;
         float speed = 500;
+        float maxFall = 200;
         char facing;
         float wepRotation;
-        void updatePos(float delta)
+        void updatePos(float delta, std::vector<std::unique_ptr<sf::Drawable>>& objects, float gravity)
         {
+            // FIX
+            for (auto& obj : objects)
+            {
+                if (boxCollide(rect.getPosition(), rect.getSize(), *obj->getPosition(), sf::Vector2f size2))
+            }
+            if (dy < maxFall)
+                dy += gravity * delta;
             rect.move(delta * sf::Vector2f(dx, dy));
             for (Bullet& b: bullets)
             {
@@ -151,8 +166,7 @@ void createMap(std::ifstream& file, std::vector<std::unique_ptr<sf::Drawable>>& 
     std::vector<int> args;
     if (action != '#') // else it's a comment
     {
-        std::cout << line << std::endl;
-        // get arguments
+        /// get arguments
         size_t currentPos = 2; // miss first char
         size_t seekPos;
         for (seekPos = currentPos; seekPos < line.length(); seekPos++)
@@ -167,22 +181,32 @@ void createMap(std::ifstream& file, std::vector<std::unique_ptr<sf::Drawable>>& 
             }
         }
         args.push_back(std::stoi(line.substr(currentPos, line.length())));
-        for(int a: args) std::cout << a << " ";
-        std::cout << std::endl;
 
         // add elements
         switch (action)
         {
-        // case 'P':
-        //     break;
         case 'E': // enemy
             {
             sf::Vector2f position(args.at(0), args.at(1));
+            position *= gridSize;
             vect.push_back(std::make_unique<CubeEntity>(
                 sf::Vector2f(PLAYER_SIZE, PLAYER_SIZE), enemyWeapon, 'l', 0,
-                sf::Color::Red, position * gridSize
+                sf::Color::Red, position
             ));
             std::cout << "created enemy at X:" << position.x << " Y:" << position.y << std::endl;
+            }
+            break;
+        case 'w': // wall
+            {
+                sf::Vector2f position(args.at(0), args.at(1));
+                sf::Vector2f size(args.at(2), args.at(3));
+                position *= gridSize; size *= gridSize;
+                sf::RectangleShape rect(size);
+                rect.setPosition(position);
+                vect.push_back(std::make_unique<sf::RectangleShape>(rect));
+                std::cout << "created floor at X:" << position.x <<
+                    " Y:" << position.y << " with width:" << size.x <<
+                    " and height:" << size.y << std::endl;
             }
             break;
         default:
@@ -311,7 +335,7 @@ int main()
         else
             player.dx = 0;
 
-        player.updatePos(delta);
+        player.updatePos(delta, mapElements, gravity);
         player.updateElements();
 
 
@@ -327,7 +351,7 @@ int main()
         if (showFps)
         {
             fpsAmt = "FPS: " + std::to_string(fps) +
-            "\nR: " + std::to_string(player.wepRotation);
+            "\nR: " + std::to_string(radToDeg(player.wepRotation));
             fpsText.setString(fpsAmt);
             debugLines[0].position = player.container.getPosition();
             debugLines[1].position = (sf::Vector2f)mousePos;
