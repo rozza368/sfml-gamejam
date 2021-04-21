@@ -29,8 +29,10 @@ bool boxCollide(sf::Vector2f point1, sf::Vector2f size1,
     sf::Vector2f point2, sf::Vector2f size2,
     sf::Vector2f offset1=sf::Vector2f(), sf::Vector2f offset2=sf::Vector2f())
 {
-    bool xCol = (point2.x <= point1.x + size1.x && point1.x + size1.x <= point2.x + size2.x);
-    bool yCol = (point2.y <= point1.y + size1.y && point1.y + size1.y <= point2.y + size2.y);
+    bool xCol = (point2.x <= point1.x + size1.x && point1.x + size1.x <= point2.x + size2.x ||
+        point2.x <= point1.x && point1.x <= point2.x + size2.x);
+    bool yCol = (point2.y <= point1.y + size1.y && point1.y + size1.y <= point2.y + size2.y ||
+        point2.y <= point1.y && point1.y <= point2.y + size2.y);
     return (xCol && yCol);
 }
 
@@ -40,8 +42,10 @@ bool boxCollide(sf::RectangleShape first, sf::RectangleShape second)
     sf::Vector2f point2 = second.getPosition() - second.getOrigin();
     sf::Vector2f size1 = first.getSize();
     sf::Vector2f size2 = second.getSize();
-    bool xCol = (point2.x <= point1.x + size1.x && point1.x + size1.x <= point2.x + size2.x);
-    bool yCol = (point2.y <= point1.y + size1.y && point1.y + size1.y <= point2.y + size2.y);
+    bool xCol = (point2.x <= point1.x + size1.x && point1.x + size1.x <= point2.x + size2.x ||
+        point2.x <= point1.x && point1.x <= point2.x + size2.x);
+    bool yCol = (point2.y <= point1.y + size1.y && point1.y + size1.y <= point2.y + size2.y ||
+        point2.y <= point1.y && point1.y <= point2.y + size2.y);
     return (xCol && yCol);
 }
 
@@ -150,6 +154,12 @@ class CubeEntity : public sf::RectangleShape
                     mod = 1;
                 else if (dx > 0)
                     mod = -1;
+                // stops small velocities remaining
+                if (dx > -delta*speed && dx < delta*speed)
+                {
+                    dx = 0;
+                    mod = 0;
+                }
                 break;
             }
             dx += mod * speed * delta;
@@ -173,20 +183,15 @@ class CubeEntity : public sf::RectangleShape
         {
             if (dy < maxFall)
                 dy += gravity * delta;
-            if (!canJump)
+            for (auto& obj : objects)
             {
-                for (auto& obj : objects)
-                {
-                    if (boxCollide(rect, obj))
-                    { // player is colliding with something
-                        dy = 0;
-                        // if (rect.getPosition().y+25 > obj.getPosition().y)
-                        //     rect.move(0, -1);
-                        canJump = true;
-                        break;
-                    }
-                }
-            } else dy = 0;
+                if (boxCollide(rect, obj))
+                { // player is colliding with something
+                    dy = 0;
+                    canJump = true;
+                    break;
+                } else canJump = false;
+            }
             rect.move(delta * sf::Vector2f(dx, dy));
             for (Bullet& b: bullets)
             {
@@ -235,6 +240,8 @@ void createMap(std::ifstream& file,
     std::string line;
     while (getline(file, line))
     {
+    if (line.length() < 1)
+        continue;
     char action = line[0];
     std::vector<int> args;
     if (action != '#') // else it's a comment
@@ -331,11 +338,11 @@ int main(int argc, char* argv[])
     sf::Vector2i mousePos;
 
     // std::vector<std::unique_ptr<sf::Drawable>> mapElements;
-    std::vector<sf::RectangleShape> mapElements;
+    std::vector<sf::RectangleShape> mapElements = {};
     createMap(mapFile, mapElements, enemyWep);
 
     //// debug info
-    bool showFps = true;
+    bool showFps = false;
     std::string fpsAmt;
     sf::Font debugFont;
     if (!debugFont.loadFromFile("./assets/fonts/FreeSans.otf"))
@@ -345,7 +352,7 @@ int main(int argc, char* argv[])
     sf::Text fpsText;
     fpsText.setFont(debugFont);
     fpsText.setCharacterSize(20);
-    fpsText.setFillColor(sf::Color::White);
+    fpsText.setFillColor(sf::Color::Black);
 
 
     //// game time
@@ -396,9 +403,6 @@ int main(int argc, char* argv[])
                     player.shoot();
                 }
             }
-            // else if (event.type == sf::Event::MouseMoved)
-            // {
-            // }
             else if (event.type == sf::Event::KeyPressed)
             {
                 switch (event.key.code) {
