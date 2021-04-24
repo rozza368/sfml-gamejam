@@ -11,7 +11,7 @@
 #include <cmath>
 #include <fstream>
 
-#define PI 3.14159265359
+#include "funcs.hpp"
 
 struct Weapon
 {
@@ -20,34 +20,6 @@ struct Weapon
     float fireRate;
 };
 
-float radToDeg(float rads)
-{
-    return rads * 360.f / (2*PI);
-}
-
-bool boxCollide(sf::Vector2f point1, sf::Vector2f size1,
-    sf::Vector2f point2, sf::Vector2f size2,
-    sf::Vector2f offset1=sf::Vector2f(), sf::Vector2f offset2=sf::Vector2f())
-{
-    bool xCol = (point2.x <= point1.x + size1.x && point1.x + size1.x <= point2.x + size2.x ||
-        point2.x <= point1.x && point1.x <= point2.x + size2.x);
-    bool yCol = (point2.y <= point1.y + size1.y && point1.y + size1.y <= point2.y + size2.y ||
-        point2.y <= point1.y && point1.y <= point2.y + size2.y);
-    return (xCol && yCol);
-}
-
-bool boxCollide(sf::RectangleShape first, sf::RectangleShape second)
-{
-    sf::Vector2f point1 = first.getPosition() - first.getOrigin();
-    sf::Vector2f point2 = second.getPosition() - second.getOrigin();
-    sf::Vector2f size1 = first.getSize();
-    sf::Vector2f size2 = second.getSize();
-    bool xCol = (point2.x <= point1.x + size1.x && point1.x + size1.x <= point2.x + size2.x ||
-        point2.x <= point1.x && point1.x <= point2.x + size2.x);
-    bool yCol = (point2.y <= point1.y + size1.y && point1.y + size1.y <= point2.y + size2.y ||
-        point2.y <= point1.y && point1.y <= point2.y + size2.y);
-    return (xCol && yCol);
-}
 
 class Bullet : public sf::RectangleShape
 {
@@ -67,6 +39,19 @@ class Bullet : public sf::RectangleShape
     void updatePos(float delta)
     {
         move(delta * sf::Vector2f(dx, dy));
+    }
+
+    template<typename T>
+    int checkCollision(T &objects)
+    {
+        for (int o = 0; o < objects.size(); o++)
+        {
+            if (boxCollide(getPosition(), sf::Vector2f(), objects[o].getPosition(), objects[o].getSize()))
+            {
+                return o;
+            }
+        }
+        return -1;
     }
 
     private:
@@ -125,7 +110,7 @@ class CubeEntity : public sf::RectangleShape
             );
             container.setRotation(radToDeg(wepRotation));
         }
-        
+
         void jump()
         {
             std::cout << "attempted to jump: ";
@@ -179,6 +164,7 @@ class CubeEntity : public sf::RectangleShape
 
         void updatePos(float delta,
             std::vector<sf::RectangleShape>& objects,
+            std::vector<CubeEntity>& enemies,
             float gravity)
         {
             if (dy < maxFall)
@@ -193,9 +179,24 @@ class CubeEntity : public sf::RectangleShape
                 } else canJump = false;
             }
             rect.move(delta * sf::Vector2f(dx, dy));
-            for (Bullet& b: bullets)
+
+            // update bullets
+            for (int b = 0; b < bullets.size(); b++)
             {
-                b.updatePos(delta);
+                int index = 0;
+                bullets[b].updatePos(delta);
+                index = bullets[b].checkCollision(enemies);
+                if (bullets[b].checkCollision(objects) > -1)
+                {
+                    std::cout << "shot world\n";
+                    bullets.erase(bullets.begin()+b);
+                }
+                else if (index > -1)
+                {
+                    std::cout << "shot enemy\n";
+                    bullets.erase(bullets.begin()+b);
+                    enemies.erase(enemies.begin()+index);
+                }
             }
         }
 
@@ -230,8 +231,8 @@ class CubeEntity : public sf::RectangleShape
 
 
 void createMap(std::ifstream& file,
-    // std::vector<std::unique_ptr<sf::Drawable>>& vect,
-    std::vector<sf::RectangleShape>& vect,
+    std::vector<CubeEntity>& enemyVect,
+    std::vector<sf::RectangleShape>& mapVect,
     Weapon enemyWeapon)
 {
     if (file.is_open()) {
@@ -269,7 +270,7 @@ void createMap(std::ifstream& file,
             {
             sf::Vector2f position(args.at(0), args.at(1));
             position *= gridSize;
-            vect.push_back(CubeEntity(
+            enemyVect.push_back(CubeEntity(
                 sf::Vector2f(PLAYER_SIZE, PLAYER_SIZE), enemyWeapon, 'l', 0,
                 sf::Color::Red, position
             ));
@@ -283,7 +284,7 @@ void createMap(std::ifstream& file,
                 position *= gridSize; size *= gridSize;
                 sf::RectangleShape rect(size);
                 rect.setPosition(position);
-                vect.push_back(rect);
+                mapVect.push_back(rect);
                 std::cout << "created floor at X:" << position.x <<
                     " Y:" << position.y << " with width:" << size.x <<
                     " and height:" << size.y << std::endl;
@@ -339,7 +340,8 @@ int main(int argc, char* argv[])
 
     // std::vector<std::unique_ptr<sf::Drawable>> mapElements;
     std::vector<sf::RectangleShape> mapElements = {};
-    createMap(mapFile, mapElements, enemyWep);
+    std::vector<CubeEntity> enemies = {};
+    createMap(mapFile, enemies, mapElements, enemyWep);
 
     //// debug info
     bool showFps = false;
@@ -388,7 +390,7 @@ int main(int argc, char* argv[])
         }
         else player.xVel('s', delta);
 
-        player.updatePos(delta, mapElements, gravity);
+        player.updatePos(delta, mapElements, enemies, gravity);
         player.updateElements();
 
         sf::Event event;
@@ -424,6 +426,10 @@ int main(int argc, char* argv[])
         for (sf::RectangleShape& obj : mapElements)
         {
             window.draw(obj);
+        }
+        for (CubeEntity& enemy : enemies)
+        {
+            window.draw(enemy);
         }
         window.draw(player);
 
