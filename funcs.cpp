@@ -42,7 +42,7 @@ bool boxCollide(sf::RectangleShape first, sf::RectangleShape second)
 void createMap(std::ifstream& file,
     std::vector<CubeEntity>& enemyVect,
     std::vector<sf::RectangleShape>& mapVect,
-    Weapon enemyWeapon)
+    Weapon& enemyWeapon)
 {
     if (file.is_open()) {
 

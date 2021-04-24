@@ -1,6 +1,6 @@
 # default multiplier: 10
 E 20 10
-E 100 60
+E 100 30
 # x y x y
 w 0 1 128 5
 w 0 60 128 5

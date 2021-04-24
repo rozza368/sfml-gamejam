@@ -1,18 +1,11 @@
 #include <SFML/Graphics.hpp>
-#include <SFML/Graphics/Color.hpp>
-#include <SFML/Graphics/RectangleShape.hpp>
-#include <SFML/System/Vector2.hpp>
-#include <SFML/Window/Keyboard.hpp>
-#include <cstddef>
 #include <iostream>
-#include <memory>
 #include <string>
 #include <vector>
-#include <cmath>
 #include <fstream>
 
-#include "funcs.hpp"
 #include "gameClasses.hpp"
+#include "funcs.hpp"
 
 
 int main(int argc, char* argv[])
@@ -23,6 +16,9 @@ int main(int argc, char* argv[])
     sf::RenderWindow window(sf::VideoMode(WIDTH, HEIGHT), "Game Jam", style);
     // window.setVerticalSyncEnabled(true);
     window.setFramerateLimit(240); // if no vsync
+    sf::Image icon;
+    icon.loadFromFile("./assets/imgs/gun.png");
+    window.setIcon(icon.getSize().x, icon.getSize().y, icon.getPixelsPtr());
 
 
     //// game assets
@@ -94,12 +90,10 @@ int main(int argc, char* argv[])
         if (sf::Keyboard::isKeyPressed(sf::Keyboard::A))
         {
             player.xVel('l', delta);
-            player.facing = 'l';
         }
         else if (sf::Keyboard::isKeyPressed(sf::Keyboard::D))
         {
             player.xVel('r', delta);
-            player.facing = 'r';
         }
         else player.xVel('s', delta);
 
@@ -142,6 +136,8 @@ int main(int argc, char* argv[])
         }
         for (CubeEntity& enemy : enemies)
         {
+            enemy.updatePos(delta, mapElements, enemies, gravity);
+            enemy.updateElements();
             window.draw(enemy);
         }
         window.draw(player);

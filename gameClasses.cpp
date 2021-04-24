@@ -1,8 +1,10 @@
 #include <SFML/Graphics.hpp>
 #include <cmath>
 #include <iostream>
-#include "funcs.hpp"
+
 #include "gameClasses.hpp"
+#include "funcs.hpp"
+
 
 
 ////////////////////////
@@ -114,9 +116,11 @@ void CubeEntity::xVel(char option, float delta)
     int mod;
     switch (option) {
     case 'l': // left
+        facing = 'l';
         mod = -1;
         break;
     case 'r': // right
+        facing = 'r';
         mod = 1;
         break;
     case 's': // slow down
