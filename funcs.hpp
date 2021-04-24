@@ -1,7 +1,6 @@
 #pragma once
 
-#include <SFML/System/Vector2.hpp>
-#include <SFML/Graphics/RectangleShape.hpp>
+#include "gameClasses.hpp"
 
 float radToDeg(float rads);
 
@@ -10,3 +9,8 @@ bool boxCollide(sf::Vector2f point1, sf::Vector2f size1,
     sf::Vector2f offset1=sf::Vector2f(), sf::Vector2f offset2=sf::Vector2f());
 
 bool boxCollide(sf::RectangleShape first, sf::RectangleShape second);
+
+void createMap(std::ifstream& file,
+    std::vector<CubeEntity>& enemyVect,
+    std::vector<sf::RectangleShape>& mapVect,
+    Weapon enemyWeapon);
