@@ -6,7 +6,7 @@
 
 #include "gameClasses.hpp"
 #include "funcs.hpp"
-
+#include "cutscene.hpp"
 
 int main(int argc, char* argv[])
 {
@@ -27,9 +27,8 @@ int main(int argc, char* argv[])
     {
         std::cout << "Failed to load dialogue font." << std::endl;
     }
+
     sf::Texture gun;
-    if (!gun.loadFromFile("./assets/imgs/gun.png"))
-        std::cout << "Failed to load gun texture" << std::endl;
 
     std::ifstream mapFile;
     mapFile.open("inside.map");
@@ -54,6 +53,7 @@ int main(int argc, char* argv[])
     std::vector<Enemy> enemies = {};
     createMap(mapFile, enemies, mapElements, enemyWep);
 
+
     //// debug info
     bool showFps = false;
     std::string fpsAmt;
@@ -74,10 +74,11 @@ int main(int argc, char* argv[])
     sf::Time timeElapsed;
     float delta;
 
+    bool running = doCutscene(window);
 
     //// main loop
-    bool running = true;
     sf::Clock gameTimer;
+    std::cout << "started game loop." << std::endl;
     while (running)
     {
         timeElapsed = frameCounter.restart();
@@ -173,6 +174,7 @@ int main(int argc, char* argv[])
     }
 
     window.close();
+    std::cout << "Game closed" << std::endl;
 
     return 0;
 }
