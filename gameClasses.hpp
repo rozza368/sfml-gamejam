@@ -123,6 +123,8 @@ class Enemy : public CubeEntity
             std::vector<sf::RectangleShape>& mapElements,
             Player& player
         );
+        // void shoot();
+        // float weaponCooldown = 2;
 };
 
 

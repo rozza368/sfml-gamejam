@@ -1,6 +1,7 @@
 #include <SFML/Graphics.hpp>
 #include <cmath>
 #include <iostream>
+#include <cstdlib>
 
 #include <vector>
 #include <fstream>
@@ -25,27 +26,12 @@ Bullet::Bullet(sf::Vector2f pos, float speed, float rotation, bool reverse)
     dy = mod*speed * std::sin(rotation);
 }
 
-#include "gameClasses.hpp"
 
 void Bullet::updatePos(float delta)
 {
     move(delta * sf::Vector2f(dx, dy));
 }
 
-/*
-template<typename T>
-int Bullet::checkCollision(T &objects)
-{
-    for (int o = 0; o < objects.size(); o++)
-    {
-        if (boxCollide(getPosition(), sf::Vector2f(), objects[o].getPosition(), objects[o].getSize()))
-        {
-            return o;
-        }
-    }
-    return -1;
-}
-*/
 
 
 ////////////////////////
@@ -167,36 +153,6 @@ void CubeEntity::updatePos(float delta,
     rect.move(delta * sf::Vector2f(dx, dy));
 }
 
-/*
-template<typename T>
-int Player::updateBullets(
-            float delta,
-            std::vector<sf::RectangleShape>& mapElements,
-            std::vector<T>& enemies
-        )
-{
-    std::vector<Bullet> bullets = this->bullets;
-    for (int b = 0; b < bullets.size(); b++)
-    {
-        int index = 0;
-        bullets[b].updatePos(delta);
-        index = bullets[b].checkCollision(enemies);
-        if (bullets[b].checkCollision(mapElements) > -1)
-        {
-            std::cout << "shot world\n";
-            bullets.erase(bullets.begin()+b);
-        }
-        else if (index > -1)
-        {
-            std::cout << "shot enemy\n";
-            bullets.erase(bullets.begin()+b);
-            enemies.erase(enemies.begin()+index);
-            return index;
-        }
-    }
-    return -1;
-}
-*/
 
 int Enemy::updateBullets(
             float delta,
@@ -254,6 +210,17 @@ void Enemy::targetPlayer(sf::Vector2f playerPos)
         facing = 'r';
 }
 
+/*
+void Enemy::shoot()
+{
+    // float cd = this->weaponCooldown + (float)(rand() % 6 - 3) / 10;
+    if (shootTimer.getElapsedTime().asSeconds() >= 1.f / )
+    {
+        bullets.push_back(Bullet(container.getPosition(), entWeapon.bulletSpeed, wepRotation, (facing == 'l')));
+        shootTimer.restart();
+    }
+}
+*/
 
 void createMap(std::ifstream& file,
     std::vector<Enemy>& enemyVect,

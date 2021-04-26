@@ -20,6 +20,8 @@ int main(int argc, char* argv[])
     icon.loadFromFile("./assets/imgs/gun.png");
     window.setIcon(icon.getSize().x, icon.getSize().y, icon.getPixelsPtr());
 
+    bool running = doCutscene(window);
+
 
     //// game assets
     sf::Font dialogueFont;
@@ -29,7 +31,8 @@ int main(int argc, char* argv[])
     }
 
     sf::Texture gun;
-
+    if (!gun.loadFromFile("assets/imgs/gun.png"))
+        std::cout << "Failed to load gun texture." << std::endl;
     std::ifstream mapFile;
     mapFile.open("inside.map");
 
@@ -37,10 +40,10 @@ int main(int argc, char* argv[])
 
     //// game vars
     Weapon playerWep = {gun, 1500, 5};
-    Weapon enemyWep = {gun, 200, 0.5};
+    Weapon enemyWep = {gun, 500, 0.5};
     Player player(sf::Vector2f(PLAYER_SIZE, PLAYER_SIZE), playerWep, 'r',
         100, sf::Color::Black);
-    player.rect.setPosition(sf::Vector2f(600, 500));
+    player.rect.setPosition(sf::Vector2f(200, 500));
 
     int gravity = 1200;
     sf::VertexArray debugLines(sf::LineStrip, 4);
@@ -74,7 +77,6 @@ int main(int argc, char* argv[])
     sf::Time timeElapsed;
     float delta;
 
-    bool running = doCutscene(window);
 
     //// main loop
     sf::Clock gameTimer;
@@ -116,10 +118,6 @@ int main(int argc, char* argv[])
                 if (event.mouseButton.button == sf::Mouse::Left)
                 {
                     player.shoot();
-                    for (Enemy& e : enemies)
-                    {
-                        e.shoot();
-                    }
                 }
             }
             else if (event.type == sf::Event::KeyPressed)
@@ -151,6 +149,7 @@ int main(int argc, char* argv[])
             enemy.updateBullets(delta, mapElements, player);
             enemy.updateWeaponRotation((sf::Vector2i)player.rect.getPosition());
             enemy.updateElements();
+            enemy.shoot();
             window.draw(enemy);
         }
         window.draw(player);
