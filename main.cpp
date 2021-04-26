@@ -39,17 +39,19 @@ int main(int argc, char* argv[])
     //// game vars
     Weapon playerWep = {gun, 1500, 5};
     Weapon enemyWep = {gun, 200, 0.5};
-    CubeEntity player(sf::Vector2f(PLAYER_SIZE, PLAYER_SIZE), playerWep, 'r',
+    Player player(sf::Vector2f(PLAYER_SIZE, PLAYER_SIZE), playerWep, 'r',
         100, sf::Color::Black);
     player.rect.setPosition(sf::Vector2f(600, 500));
 
     int gravity = 1200;
     sf::VertexArray debugLines(sf::LineStrip, 4);
     sf::Vector2i mousePos;
+    sf::View gameView(sf::FloatRect(0, 0, WIDTH, HEIGHT));
+    window.setView(gameView);
 
     // std::vector<std::unique_ptr<sf::Drawable>> mapElements;
     std::vector<sf::RectangleShape> mapElements = {};
-    std::vector<CubeEntity> enemies = {};
+    std::vector<Enemy> enemies = {};
     createMap(mapFile, enemies, mapElements, enemyWep);
 
     //// debug info
@@ -83,7 +85,7 @@ int main(int argc, char* argv[])
         fps = 1000000.f / timeElapsed.asMicroseconds();
 
         ///// update game
-        mousePos = sf::Mouse::getPosition(window);
+        mousePos = (sf::Vector2i)((sf::Vector2f)sf::Mouse::getPosition(window) + gameView.getCenter() - sf::Vector2f(WIDTH / 2, HEIGHT / 2));
         player.updateWeaponRotation(mousePos);
 
 
@@ -97,8 +99,11 @@ int main(int argc, char* argv[])
         }
         else player.xVel('s', delta);
 
-        player.updatePos(delta, mapElements, enemies, gravity);
+        player.updatePos(delta, mapElements, gravity);
+        gameView.setCenter(player.rect.getPosition() - sf::Vector2f(0, 100));
+        window.setView(gameView);
         player.updateElements();
+        player.updateBullets(delta, mapElements, enemies);
 
         sf::Event event;
         while (window.pollEvent(event))
@@ -110,6 +115,10 @@ int main(int argc, char* argv[])
                 if (event.mouseButton.button == sf::Mouse::Left)
                 {
                     player.shoot();
+                    for (Enemy& e : enemies)
+                    {
+                        e.shoot();
+                    }
                 }
             }
             else if (event.type == sf::Event::KeyPressed)
@@ -134,9 +143,12 @@ int main(int argc, char* argv[])
         {
             window.draw(obj);
         }
-        for (CubeEntity& enemy : enemies)
+        for (Enemy& enemy : enemies)
         {
-            enemy.updatePos(delta, mapElements, enemies, gravity);
+            enemy.targetPlayer(player.rect.getPosition());
+            enemy.updatePos(delta, mapElements, gravity);
+            enemy.updateBullets(delta, mapElements, player);
+            enemy.updateWeaponRotation((sf::Vector2i)player.rect.getPosition());
             enemy.updateElements();
             window.draw(enemy);
         }
